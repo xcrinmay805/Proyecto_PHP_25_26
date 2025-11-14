@@ -1,99 +1,83 @@
 <?php
-require_once 'funcionesBD.php';
-$conn = conexionBD();
+require_once("funcionesBD.php");
+$conexion = obtenerConexion();
 
-$ciudades = $conn->query("SELECT idciudad, nombre FROM city");
+$mensaje = "";
 
-$idorigen = $_GET['idorigen'] ?? '';
-$iddestino = $_GET['iddestino'] ?? '';
-$fecha = $_GET['fecha'] ?? '';
+// Si se envió el formulario
+if (isset($_GET['txtCiudad']) && !empty(trim($_GET['txtCiudad']))) {
+    $ciudad = trim($_GET['txtCiudad']);
 
-$sql = "SELECT t.*, c1.nombre AS origen, c2.nombre AS destino
-        FROM trip t
-        JOIN city c1 ON t.idorigen = c1.idciudad
-        JOIN city c2 ON t.iddestino = c2.idciudad
-        WHERE 1=1";
+    // Buscar viajes donde el origen o destino contenga el texto ingresado
+    $sql = "SELECT t.idviaje, c1.nombre AS origen, c2.nombre AS destino, t.fechasalida, t.fecharegreso, t.duracion, t.preciobase, t.cocheHotel
+            FROM trip t
+            JOIN city c1 ON t.idorigen = c1.idciudad
+            JOIN city c2 ON t.iddestino = c2.idciudad
+            WHERE c1.nombre LIKE '%$ciudad%' OR c2.nombre LIKE '%$ciudad%'
+            ORDER BY t.idviaje ASC";
 
-if($idorigen != '') $sql .= " AND t.idorigen=$idorigen";
-if($iddestino != '') $sql .= " AND t.iddestino=$iddestino";
-if($fecha != '') $sql .= " AND DATE(t.fechasalida)='$fecha'";
+    $resultado = mysqli_query($conexion, $sql);
 
-$result = $conn->query($sql);
+    if (mysqli_num_rows($resultado) > 0) {
+        $mensaje .= "<h2 class='text-center'>Resultados de la búsqueda</h2>";
+        $mensaje .= "<table class='table table-striped mt-4'>";
+        $mensaje .= "<thead><tr>
+                        <th>ID</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Fecha Salida</th>
+                        <th>Fecha Regreso</th>
+                        <th>Duración</th>
+                        <th>Precio Base (€)</th>
+                        <th>Coche/Hotel</th>
+                    </tr></thead><tbody>";
+
+        while ($viaje = mysqli_fetch_assoc($resultado)) {
+            $mensaje .= "<tr>";
+            $mensaje .= "<td>" . $viaje['idviaje'] . "</td>";
+            $mensaje .= "<td>" . $viaje['origen'] . "</td>";
+            $mensaje .= "<td>" . $viaje['destino'] . "</td>";
+            $mensaje .= "<td>" . $viaje['fechasalida'] . "</td>";
+            $mensaje .= "<td>" . $viaje['fecharegreso'] . "</td>";
+            $mensaje .= "<td>" . $viaje['duracion'] . "</td>";
+            $mensaje .= "<td>" . number_format($viaje['preciobase'], 2) . "</td>";
+            $mensaje .= "<td>" . ($viaje['cocheHotel'] ? 'Sí' : 'No') . "</td>";
+            $mensaje .= "</tr>";
+        }
+
+        $mensaje .= "</tbody></table>";
+    } else {
+        $mensaje = "<div class='alert alert-warning text-center mt-3'>⚠️ No se encontraron viajes para esa ciudad.</div>";
+    }
+} elseif (isset($_GET['txtCiudad'])) {
+    $mensaje = "<div class='alert alert-danger text-center mt-3'>Por favor, ingresa un nombre de ciudad para buscar.</div>";
+}
+
+mysqli_close($conexion);
+include_once("cabecera.html");
 ?>
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Buscar Viaje</title>
-    <link href="bootstrap.css" rel="stylesheet">
-</head>
-<body class="p-4">
-<div class="container">
-    <h2>Buscar Viaje</h2>
+<div class="container" id="formularios">
+    <div class="row">
+        <form class="form-horizontal" action="buscarviaje.php" name="frmBuscarViaje" id="frmBuscarViaje" method="get">
+            <fieldset>
+                <legend>Buscar un Viaje</legend>
+                <div class="form-group">
+                    <label class="col-xs-4 control-label" for="txtCiudad">Ciudad (origen o destino)</label>
+                    <div class="col-xs-4">
+                        <input id="txtCiudad" name="txtCiudad" placeholder="Nombre de la ciudad" class="form-control input-md" type="text">
+                    </div>
+                </div>
+                <div class="form-group mt-3">
+                    <div class="col-xs-4 col-xs-offset-4">
+                        <input type="submit" id="btnAceptarBuscarViaje" name="btnAceptarBuscarViaje" class="btn btn-primary" value="Buscar" />
+                    </div>
+                </div>
+            </fieldset>
+        </form>
 
-    <form method="get" class="row g-3 mb-4">
-        <div class="col-md-3">
-            <label>Origen</label>
-            <select name="idorigen" class="form-select">
-                <option value="">Todos</option>
-                <?php foreach($ciudades as $c): ?>
-                    <option value="<?= $c['idciudad'] ?>" <?= $idorigen==$c['idciudad']?'selected':'' ?>><?= $c['nombre'] ?></option>
-                <?php endforeach; ?>
-            </select>
+        <div class="col-12 mt-4">
+            <?php echo $mensaje; ?>
         </div>
-        <div class="col-md-3">
-            <label>Destino</label>
-            <select name="iddestino" class="form-select">
-                <option value="">Todos</option>
-                <?php foreach($ciudades as $c): ?>
-                    <option value="<?= $c['idciudad'] ?>" <?= $iddestino==$c['idciudad']?'selected':'' ?>><?= $c['nombre'] ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label>Fecha salida</label>
-            <input type="date" name="fecha" class="form-control" value="<?= $fecha ?>">
-        </div>
-        <div class="col-md-3 align-self-end">
-            <button type="submit" class="btn btn-primary w-100">Buscar</button>
-        </div>
-    </form>
-
-    <table class="table table-striped">
-        <thead>
-        <tr>
-            <th>ID</th>
-            <th>Origen</th>
-            <th>Destino</th>
-            <th>Salida</th>
-            <th>Regreso</th>
-            <th>Duración</th>
-            <th>Precio</th>
-            <th>Coche/Hotel</th>
-            <th>Acciones</th>
-        </tr>
-        </thead>
-        <tbody>
-        <?php while($v = $result->fetch_assoc()): ?>
-            <tr>
-                <td><?= $v['idviaje'] ?></td>
-                <td><?= $v['origen'] ?></td>
-                <td><?= $v['destino'] ?></td>
-                <td><?= $v['fechasalida'] ?></td>
-                <td><?= $v['fecharegreso'] ?></td>
-                <td><?= $v['duracion'] ?></td>
-                <td><?= $v['preciobase'] ?></td>
-                <td><?= $v['cocheHotel'] ? 'Sí' : 'No' ?></td>
-                <td>
-                    <a href="modificarviaje.php?id=<?= $v['idviaje'] ?>" class="btn btn-warning btn-sm">Editar</a>
-                    <a href="borrarviaje.php?id=<?= $v['idviaje'] ?>" class="btn btn-danger btn-sm">Borrar</a>
-                </td>
-            </tr>
-        <?php endwhile; ?>
-        </tbody>
-    </table>
-    <a href="altaviaje.php" class="btn btn-success">Agregar Nuevo Viaje</a>
+    </div>
 </div>
-</body>
-</html>

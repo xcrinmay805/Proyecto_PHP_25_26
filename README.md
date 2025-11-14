@@ -13,3 +13,11 @@ https://viajeajapon.great-site.net/?i=1 enlace del sitio web.
 ## Sobre el desarollo del proyecto:
 
 Ricardo ha hecho su parte a última hora, con chatgpt y sin poner en común con el resto del grupo hasta el último momento. Estaba lleno de errores y no funcionaba (no ha comprobado siquiera que funcione).
+
+## Datos de acceso a la BD
+
+Nombre: Viajes
+
+Usuario: root
+
+Contraseña: test
